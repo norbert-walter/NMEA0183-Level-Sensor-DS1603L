@@ -37,18 +37,25 @@
 #include <SoftwareSerial.h>
 #include <MovingAverage.h>
 
+//WiFi AP settings
+const char SSID[30] = "UltrasonicSensor";
+const char PASSWD[30] = "12345678";
+
 //Einstellungen für broadcasting
 unsigned int portBroadcast = 50000;      // localer port an den gesendet wird
 unsigned int broadCast = 0;
 
 //Variablen für Timer um Sensorwerte zu lesen
 unsigned long Timer_RX = 0;
-long Timeout_RX = 5000;                // Intervall in ms hier 5000ms = 5s
+unsigned long Timeout_RX = 5000;         // Intervall in ms hier 5000ms = 5s
 
 // Angabe wie der Sensor angeschlossen ist. Nutze Dx statt x für Pin-Angabe wenn Wemos benutzt wird
-const byte txPin = D3;                               // tx of the Wemos to rx of the sensor
-const byte rxPin = D4;                               // rx of the Wemos to tx of the sensor
+const byte txPin = D2;                               // tx of the Wemos to rx of the sensor
+const byte rxPin = D3;                               // rx of the Wemos to tx of the sensor
 SoftwareSerial sensorSerial(rxPin, txPin);
+
+// Indicator LED
+const byte LED = D4;
 
 // If your sensor is connected to Serial, Serial1, Serial2, AltSoftSerial, etc. pass that object to the sensor constructor.
 DS1603L sensor(sensorSerial);
@@ -97,8 +104,6 @@ unsigned int Sensor () {
     }
     hoehe_D.add(reading);                            //Schieberegister zur Mittelwertbildung
     unsigned int reading_D = hoehe_D.get();
-    //Serial.println("Durchschnittshöhe:");           //Zum Test
-    //Serial.println(reading_D);                      //Zum Test
     return reading_D;
   }
   unsigned int reading_D = hoehe_D.get();
@@ -109,12 +114,12 @@ unsigned int Sensor () {
 void Berechnung(int h) {
   int Prozent = (h / 400.00) * 100; //Testrechnung muss an Tank angepasst werden. 400 mm als Gesamthöhe Tank zum Test
   Fuell = String(Prozent, DEC);
-  Serial.println("Zur Kontrolle, Variablen h, Prozent und Fuell:");      //Zum Test ggf. auskommentieren
-  Serial.println(h);                                                     //Zum Test ggf. auskommentieren
-  Serial.println(Prozent);                                               //Zum Test ggf. auskommentieren
-  Serial.println(Fuell);                                                 //Zum Test ggf. auskommentieren
-  delay(500);                                                            //Zum Test ggf. auskommentieren
-
+  Serial.print("Hight[mm]: ");
+  Serial.println(h);
+  Serial.print("Level[%]: ");
+  Serial.println(Prozent);
+  Serial.print("Send: ");
+  Serial.println(Fuell);
 }
 
 //Calculates the checksum for the NMEA String
@@ -134,7 +139,7 @@ int testsum(String strN) {
 //Create NMEA String XDR
 String NMEA_XDR(String Val) {
   String nmea = "$IIXDR,V,";
-  nmea += Val, DEC;
+  nmea += Val;
   nmea += ",P,FUEL*"; //FUEL für Treibstoff, Anpassen um weitere Tanktypen zu erfassen, siehe Dokumentation EngineDashboard-Plugin OpenCPN
   nmea += String (testsum(nmea), HEX);
   //nmea += '\r';
@@ -151,32 +156,32 @@ void Data(String n) {
 
 void setup() {
 
+  pinMode(LED, OUTPUT);     // Define LED output
+  digitalWrite(LED, LOW);   // Set LED on (low activ)
+  
   Serial.begin(115200);
   Serial.println();
 
   sensorSerial.begin(9600);                         // Sensor transmits its data at 9600 bps.
   sensor.begin();                                   // Initialise the sensor library.
 
-  //reset settings - zum Testen
-  //wifiManager.resetSettings();
-
   //Timeout in sek., nach Ablauf wird die Setup-Seite ausgeschaltet
-  wifiManager.setTimeout(120);
+  wifiManager.setTimeout(600);
 
 
   //Automatische Startseite und nach Timeout (wifimanager.setTimeout) erfolgt reset
-  if (!wifiManager.autoConnect("SSID", "Password")) {  //Gebe eine SSID vor sowie ein Password. Password muss mindestens 7 Zeichen lang sein
+  if (!wifiManager.autoConnect(SSID, PASSWD)) {  //Gebe eine SSID vor sowie ein Password. Password muss mindestens 7 Zeichen lang sein
     Serial.println("failed to connect, shut down WiFi-Modem for 3 Minutes then reset Wemos");
     //Ausschalten WiFi-Modem
     WiFi.forceSleepBegin();
-    delay(1);
     delay(180000);             //Warte 3 Minuten, in dieser Zeit ist das WiFi-Modul abgeschaltet
     ESP.reset();
   }
 
   //if you get here you have connected to the WiFi
-  Serial.println("connected...yeey :)");
-  Serial.println("local ip");
+  digitalWrite(LED, HIGH);   // Set LED on (low activ)
+  Serial.println("Connected WiFi successful");
+  Serial.print("Local IP: ");
   Serial.println(WiFi.localIP());
 }
 
@@ -185,13 +190,10 @@ void setup() {
 void loop() {
 
   hoehe = Sensor();  //Aufruf Subroutine Sensor für Sensorwerte
-  //Serial.println("Variable hoehe:");     //Zum Test ggf. auskommentieren
-  //Serial.println(hoehe);                 //Zum Test ggf. auskommentieren
-  //delay (500);                           //Zum Test ggf. auskommentieren
   Berechnung(hoehe); //Sprung Unterroutine Umrechnung Höhe in % Füllgrad Tank
 
   //Überprüfe ob Verbindung zum Netzwerk steht oder starte Setup-Seite
-  if (!wifiManager.autoConnect("SSID", "Password")) {   //Gebe eine SSID vor sowie ein Password. Password muss mindestens 7 Zeichen lang sein
+  if (!wifiManager.autoConnect(SSID, PASSWD)) {   //Gebe eine SSID vor sowie ein Password. Password muss mindestens 7 Zeichen lang sein
     Serial.println("WiFi lost, reset Wemos");
     delay(3000);
     ESP.reset();
@@ -211,7 +213,6 @@ void loop() {
   char XDR[str_len];
   // Copy it over
   str.toCharArray(XDR, str_len);
-  delay(50);
 
   //Sendeschleife Sende vier Pakete
   for (int i = 0; i < 4; i++) {
@@ -219,5 +220,8 @@ void loop() {
     Udp.write(XDR);
     Udp.endPacket();
   }
-  delay(100);
+  // Flash LED
+  digitalWrite(LED, LOW);   // Set LED on (low activ)
+  delay(250);
+  digitalWrite(LED, HIGH);   // Set LED on (low activ)
 }
