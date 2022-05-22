@@ -35,7 +35,7 @@
 #include <WiFiUdp.h>
 #include "DS1603L.h"              //https://github.com/wvmarle/Arduino_DS1603L
 #include <SoftwareSerial.h>
-#include <MovingAverage.h>
+#include <movingAvg.h>   
 
 //WiFi AP settings
 const char SSID[30] = "UltrasonicSensor";
@@ -47,7 +47,7 @@ unsigned int broadCast = 0;
 
 //Variablen für Timer um Sensorwerte zu lesen
 unsigned long Timer_RX = 0;
-unsigned long Timeout_RX = 5000;         // Intervall in ms hier 5000ms = 5s
+unsigned long Timeout_RX = 2000;         // Intervall in ms hier 5000ms = 5s
 
 // Angabe wie der Sensor angeschlossen ist. Nutze Dx statt x für Pin-Angabe wenn Wemos benutzt wird
 const byte txPin = D2;                               // tx of the Wemos to rx of the sensor
@@ -73,7 +73,7 @@ int hoehe = 0;
 String Fuell = "0";
 
 // Definition eines Arrays von 10 Feldern für gleitenden Durchschnitt
-MovingAverage <uint8_t, 10> hoehe_D;  //Gleitender Durchschnitt aus 10 Werten
+movingAvg filter(10);
 
 // Zum Senden des NMEA-Strings nötig Um die richtige Variable-Form zu bilden
 char XDR;
@@ -81,33 +81,27 @@ String XDR1;
 
 //Subroutine um Sensorwerte zu bekommen. Sensorwerte werden in ein Schieberegister geschrieben um aus 10 Werten den gleitenden Durchschnitt zu bekommen
 unsigned int Sensor () {
+  static unsigned int reading = 0;
   if (millis() - Timer_RX > Timeout_RX) {
     Timer_RX = millis ();
     Serial.println(F("Starting reading."));
-    unsigned int reading = sensor.readSensor();       // Call this as often or as little as you want - the sensor transmits every 1-2 seconds.
+    reading = uint8_t(sensor.readSensor());           // Call this as often or as little as you want - the sensor transmits every 1-2 seconds.
     byte sensorStatus = sensor.getStatus();           // Check the status of the sensor (not detected; checksum failed; reading success).
     switch (sensorStatus) {                           // For possible values see DS1603L.h
       case DS1603L_NO_SENSOR_DETECTED:                // No sensor detected: no valid transmission received for >10 seconds.
         Serial.println(F("No sensor detected (yet). If no sensor after 1 second, check whether your connections are good."));
         break;
-
       case DS1603L_READING_SUCCESS:                   // Latest reading was valid and received successfully.
-        Serial.println(F("Reading success."));
-        Serial.println(reading);
+        Serial.print(F("Reading: "));
+        Serial.print(reading);
         Serial.println(F(" mm."));
         break;
-
       case DS1603L_READING_CHECKSUM_FAIL:             // Checksum of the latest transmission failed.
         Serial.print(F("Data received; checksum failed. Latest level reading: "));
         break;
-
     }
-    hoehe_D.add(reading);                            //Schieberegister zur Mittelwertbildung
-    unsigned int reading_D = hoehe_D.get();
-    return reading_D;
   }
-  unsigned int reading_D = hoehe_D.get();
-  return reading_D;
+  return filter.reading(reading);
 }
 
 //Subroutine zur Ermittlung Höhe und Umrechnung in Prozent Füllung
@@ -167,6 +161,9 @@ void setup() {
 
   //Timeout in sek., nach Ablauf wird die Setup-Seite ausgeschaltet
   wifiManager.setTimeout(600);
+
+  // Average filter
+  filter.begin();
 
 
   //Automatische Startseite und nach Timeout (wifimanager.setTimeout) erfolgt reset
