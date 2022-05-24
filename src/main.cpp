@@ -42,7 +42,7 @@ const char SSID[30] = "UltrasonicSensor";
 const char PASSWD[30] = "12345678";
 
 //Einstellungen für broadcasting
-unsigned int portBroadcast = 50000;      // localer port an den gesendet wird
+unsigned int portBroadcast = 8888;      // localer port an den gesendet wird
 unsigned int broadCast = 0;
 
 //Variablen für Timer um Sensorwerte zu lesen
