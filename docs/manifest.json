@@ -1,5 +1,5 @@
 {
-    "name": "Level Sensor",
+    "name": "Level Sensor Firmware",
     "version": "V1.0",
     "new_install_prompt_erase": false,
     "builds": [
