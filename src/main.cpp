@@ -35,7 +35,7 @@
 #include <WiFiUdp.h>
 #include "DS1603L.h"              //https://github.com/wvmarle/Arduino_DS1603L
 #include <SoftwareSerial.h>
-#include <movingAvg.h>   
+#include <movingAvg.h>
 
 //WiFi AP settings
 const char SSID[30] = "UltrasonicSensor";
