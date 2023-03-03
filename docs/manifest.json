@@ -6,7 +6,7 @@
       {
         "chipFamily": "ESP8266",
         "parts": [
-          { "path": "https://github.com/norbert-walter/NMEA0183-Level-Sensor-DS1603L/blob/main/bin/firmware.bin", "offset": 0 }
+          { "path": "firmware.bin", "offset": 0 }
         ]
       }
     ]
