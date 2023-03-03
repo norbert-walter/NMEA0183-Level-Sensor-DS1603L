@@ -22,4 +22,4 @@ jobs:
       - name: Build
         run: |
           pio run
-          mv pio/build/d1_mini/firmware.bin docs/firmware.bin
+          mv .pio/build/d1_mini/firmware.bin docs/firmware.bin
