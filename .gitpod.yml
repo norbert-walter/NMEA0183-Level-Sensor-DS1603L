@@ -1,5 +1,6 @@
 tasks:
   - command: pip3 install -U platformio && platformio run -e d1_mini
+  - command: apt install -y sftp
 
 image:
   file: .gitpod.Dockerfile
