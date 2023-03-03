@@ -25,7 +25,7 @@
 
 
   adapted from Ethernet library examples
-  test2
+  test3
 */
 
 #include <Arduino.h>
